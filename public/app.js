@@ -94,6 +94,7 @@ async function pollJob(jobId) {
       result.textContent = JSON.stringify({
         ok: data.ok,
         source: data.source,
+        sheetName: data.sheetName,
         totalRows: data.totalRows,
         eligibleRows: job.progress?.eligibleRows,
         processedRows: data.processedRows,
@@ -153,7 +154,6 @@ form.addEventListener('submit', async (event) => {
   const formData = new FormData(form);
   const payload = {
     spreadsheetUrl: formData.get('spreadsheetUrl'),
-    sheetName: formData.get('sheetName'),
   };
 
   submitButton.disabled = true;

@@ -8,35 +8,24 @@
 </head>
 <body>
   <main class="page-shell">
-    <section class="hero-card">
-      <div class="hero-copy">
+    <section class="top-card">
+      <div class="title-wrap">
         <p class="eyebrow">SEO Meta Agent</p>
-        <h1>Generate SEO metadata directly from Google Sheets.</h1>
-        <p class="hero-text">
-          Connect Google, paste a sheet URL, and write titles and descriptions back into the same rows.
-        </p>
-        <div class="hero-pills">
-          <span class="pill">OAuth Connected Sheets</span>
-          <span class="pill">Duplicate Protection</span>
-          <span class="pill">Live Progress</span>
-        </div>
+        <h1>Generate metadata from the active Google Sheet tab.</h1>
       </div>
-      <div class="hero-status">
+      <div class="top-actions">
         <div id="auth-badge" class="status-badge status-muted">Google not connected</div>
-        <div class="hero-orb"></div>
+        <button id="connect-google" type="button">Connect Google</button>
+        <button id="disconnect-google" type="button" class="secondary-button hidden">Disconnect</button>
       </div>
     </section>
 
-    <section class="workspace-grid">
-      <section class="panel panel-form">
+    <section class="main-grid">
+      <section class="panel form-panel">
         <div class="panel-head">
           <div>
-            <p class="section-label">Workspace</p>
+            <p class="section-label">Sheet Input</p>
             <h2>Run Agent</h2>
-          </div>
-          <div class="auth-row">
-            <button id="connect-google" type="button">Connect Google</button>
-            <button id="disconnect-google" type="button" class="secondary-button hidden">Disconnect</button>
           </div>
         </div>
 
@@ -52,17 +41,6 @@
             />
           </div>
 
-          <div class="field">
-            <label for="sheetName">Sheet Name</label>
-            <input
-              id="sheetName"
-              name="sheetName"
-              type="text"
-              value="Sheet1"
-              placeholder="Sheet1"
-            />
-          </div>
-
           <div class="actions full">
             <button id="submit-button" type="submit">Trigger SEO Agent</button>
             <button id="download-button" type="button" class="secondary-button hidden">Download CSV</button>
@@ -70,15 +48,15 @@
         </form>
       </section>
 
-      <aside id="progress-panel" class="panel panel-progress hidden">
+      <aside id="progress-panel" class="panel progress-panel hidden">
         <div class="panel-head compact">
           <div>
-            <p class="section-label">Live Run</p>
-            <h2>Progress</h2>
+            <p class="section-label">Progress</p>
+            <h2>Live Status</h2>
           </div>
         </div>
 
-        <div class="progress-stack">
+        <div class="progress-grid">
           <div class="metric-card">
             <span class="metric-label">Started</span>
             <strong id="started-at">-</strong>
@@ -91,7 +69,7 @@
             <span class="metric-label">Remaining</span>
             <strong id="remaining-count">0</strong>
           </div>
-          <div class="metric-card accent-card">
+          <div class="metric-card active-card">
             <span class="metric-label">Current Keyword</span>
             <strong id="current-keyword">-</strong>
           </div>
@@ -99,14 +77,14 @@
       </aside>
     </section>
 
-    <section class="panel panel-results">
+    <section class="panel results-panel">
       <div class="panel-head compact">
         <div>
           <p class="section-label">Output</p>
           <h2>Run Log</h2>
         </div>
       </div>
-      <pre id="result" class="result" aria-live="polite">Connect Google, then paste a Google Sheet URL.</pre>
+      <pre id="result" class="result" aria-live="polite">Connect Google, paste a Google Sheet URL, and run the agent.</pre>
     </section>
   </main>
 

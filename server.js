@@ -327,7 +327,7 @@ const server = http.createServer(async (req, res) => {
     try {
       const body = await readBody(req);
       const spreadsheetUrl = String(body.spreadsheetUrl || '').trim();
-      const sheetName = String(body.sheetName || 'Sheet1').trim();
+      const sheetName = String(body.sheetName || '').trim();
 
       if (!spreadsheetUrl || !parseSpreadsheetId(spreadsheetUrl)) {
         sendJson(res, 400, {
