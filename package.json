@@ -1,0 +1,13 @@
+{
+  "name": "seo-meta-agent",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SEO Meta Agent with Google Sheets OAuth integration",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
