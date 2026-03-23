@@ -1,0 +1,838 @@
+{
+  "name": "Agent 1 - SEO Meta Title & Description Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "url": "=https://r.jina.ai/{{$json[\"Page Content\"]?.startsWith('http') ? $json[\"Page Content\"] : $json[\"Mapped URL\"]}}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          },
+          "timeout": 60000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1616,
+        -96
+      ],
+      "id": "2e49ac3c-e533-4cf2-85b0-7f16a494b4d4",
+      "name": "HTTP Request",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "https://serpapi.com/search",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "=q",
+              "value": "={{$('Get row(s) in sheet').item.json[\"Target Keyword\"]}}"
+            },
+            {
+              "name": "=gl",
+              "value": "={{$('Get row(s) in sheet').item.json[\"Target Region\"].toLowerCase().trim()}}"
+            },
+            {
+              "name": "hl",
+              "value": "en"
+            },
+            {
+              "name": "num",
+              "value": "10"
+            },
+            {
+              "name": "api_key",
+              "value": "={{$env.SERPAPI_KEY}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2464,
+        -96
+      ],
+      "id": "67eef7be-044a-4423-bd82-e0368bb46d63",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const results = $input.item.json.organic_results || [];\nconst top5 = results.slice(0, 5).map(r => ({\n  title: r.title,\n  description: r.snippet,\n  url: r.link\n}));\n\nconst serp_text = top5.map((r, i) => \n  `Result ${i+1}:\\nTitle: ${r.title}\\nDescription: ${r.description}\\nURL: ${r.url}`\n).join('\\n\\n');\n\nconst analysis_prompt = `Analyse these top 5 Google SERP results for the keyword \"${$input.item.json.search_parameters.q}\":\n\n${serp_text}\n\nExtract and return ONLY valid JSON:\n{\n  \"common_words\": \"most repeated words/phrases across titles and descriptions\",\n  \"avg_title_length\": \"average character count of titles\",\n  \"avg_desc_length\": \"average character count of descriptions\",\n  \"ctas_used\": \"specific CTAs found e.g. Book Online, Call Now, Get a Free Quote\",\n  \"value_props\": \"specific value propositions e.g. $0 call out fee, same day service, 5 star rated, 500+ reviews\",\n  \"emotional_triggers\": \"emotional/trust words e.g. trusted, certified, licensed, guaranteed, award-winning\",\n  \"title_patterns\": \"exact title structures e.g. Keyword + Location | Value Prop, Best Keyword + Year | Brand\",\n  \"location_signals\": \"location specific words used e.g. Sydney, Melbourne, local, near me\",\n  \"trust_signals\": \"trust indicators e.g. years in business, number of reviews, certifications, guarantees\",\n  \"price_signals\": \"any pricing mentions e.g. free quotes, $0 call out, upfront pricing, no hidden fees\"\n}`;\n\nreturn {\n  json: {\n    keyword: $input.item.json.search_parameters.q,\n    region: $input.item.json.search_parameters.gl,\n    serp_results: top5,\n    serp_text: serp_text,\n    serp_analysis_body: JSON.stringify({\n      model: \"claude-sonnet-4-20250514\",\n      max_tokens: 500,\n      messages: [{ role: \"user\", content: analysis_prompt }]\n    })\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2688,
+        -96
+      ],
+      "id": "949cfba3-f4ab-4262-9448-a6e5247f1657",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{$env.ANTHROPIC_API_KEY}}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "=json",
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "jsonBody": "={{$json.api_body}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        3744,
+        -96
+      ],
+      "id": "a128b987-2298-4a11-920f-4bd038269a6b",
+      "name": "HTTP Request2"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const keyword = $('Get row(s) in sheet').item.json[\"Target Keyword\"];\nconst serp_text = $('Code in JavaScript').item.json.serp_text;\n\n// Get SERP analysis from Claude\nconst serp_analysis_raw = $('HTTP Request3').item.json.content[0].text;\nlet serp_analysis;\ntry {\n  const cleaned_analysis = serp_analysis_raw.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n  serp_analysis = JSON.parse(cleaned_analysis);\n} catch(e) {\n  serp_analysis = { common_words: '', ctas_used: '', value_props: '', emotional_triggers: '', title_patterns: '', location_signals: '', trust_signals: '', price_signals: '' };\n}\n\n// Get page context from Claude\nconst page_context_raw = $('HTTP Request4').item.json.content[0].text;\nlet page_context;\ntry {\n  const cleaned_context = page_context_raw.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n  page_context = JSON.parse(cleaned_context);\n} catch(e) {\n  page_context = { main_topic: '', search_intent: 'transactional', page_type: 'service page', target_audience: '' };\n}\n\n// Page content logic — using sheet data now\nconst page_url = $('Get row(s) in sheet').item.json[\"Mapped URL\"];\nconst jina_content = $('HTTP Request').item.json.data || '';\nconst jina_failed = !jina_content || jina_content.length < 100;\nconst page_content = jina_failed ? '' : jina_content;\nconst content_source = jina_failed ? 'Jina failed - using SERP only' : 'Auto-fetched from: ' + page_url;\n\n// Auto extract USPs from page content\nconst usp_prompt_section = page_content ? \n  `PAGE CONTENT (use this to extract unique selling points of this specific business):\n${page_content.substring(0, 3000)}` : \n  'No page content available';\n\n// Get existing meta titles to prevent duplication\nconst existing_titles = $('Get row(s) in sheet').all()\n  .map(row => row.json[\"Meta Title\"])\n  .filter(title => title && title.trim() !== '');\n\nconst existing_titles_text = existing_titles.length > 0 ? \n  `EXISTING META TITLES ALREADY IN USE (do NOT generate these or anything similar):\n${existing_titles.map((t, i) => `${i+1}. ${t}`).join('\\n')}` : '';\n\nconst prompt = `You are an expert SEO copywriter specialising in high-converting meta tags.\nGenerate an SEO Meta Title and Meta Description for the following page.\n\nKEYWORD: ${keyword}\n\nPAGE CONTEXT:\n- Main topic: ${page_context.main_topic}\n- Search intent: ${page_context.search_intent}\n- Page type: ${page_context.page_type}\n- Target audience: ${page_context.target_audience}\n\nSERP INTELLIGENCE (from top ranking pages in target region):\n- Common words/phrases: ${serp_analysis.common_words}\n- CTAs being used: ${serp_analysis.ctas_used}\n- Value propositions: ${serp_analysis.value_props}\n- Emotional triggers: ${serp_analysis.emotional_triggers}\n- Common title patterns: ${serp_analysis.title_patterns}\n- Location signals: ${serp_analysis.location_signals}\n- Trust signals: ${serp_analysis.trust_signals}\n- Price signals: ${serp_analysis.price_signals}\n\nTOP SERP RESULTS FOR REFERENCE:\n${serp_text}\n\n${usp_prompt_section}\n\n${existing_titles_text}\n\nINSTRUCTIONS:\n- If page content is available, use specific details from it to make the meta unique\n- If page content is NOT available, use SERP intelligence alone to write the best possible meta\n- NEVER ask for more information — ALWAYS return JSON regardless\n\nSTRICT RULES:\n- Meta Title: STRICT 50-60 characters. Must include keyword \"${keyword}\" near the start. No generic phrases.\n- Meta Description: STRICT 140-155 characters. Must include keyword \"${keyword}\". Use specific USPs. End with a CTA.\n- BOTH title AND description MUST contain the exact keyword \"${keyword}\"\n- Do NOT use generic phrases like: \"professional services\", \"high quality\", \"best in class\", \"we are here to help\"\n- Do NOT copy competitor titles or descriptions\n- Every word must earn its place — be specific, be compelling\n- NEVER explain yourself — ALWAYS return JSON no matter what\n\nReturn ONLY valid JSON, no explanation, no preamble, nothing else:\n{\"meta_title\": \"...\", \"meta_description\": \"...\"}`;\n\nreturn {\n  json: {\n    keyword: keyword,\n    content_source: content_source,\n    serp_analysis: serp_analysis,\n    page_context: page_context,\n    prompt: prompt,\n    api_body: JSON.stringify({\n      model: \"claude-sonnet-4-20250514\",\n      max_tokens: 1000,\n      messages: [{ role: \"user\", content: prompt }]\n    })\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3328,
+        -96
+      ],
+      "id": "dbb49dad-03c5-49ea-8712-865a432fefe5",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const attempt = $input.item.json.attempt || 1;\nconst content = $input.item.json.content[0].text;\nconst jsonMatch = content.match(/\\{[\\s\\S]*\\}/);\nif (!jsonMatch) throw new Error('No JSON found in Claude response: ' + content);\nconst cleaned = jsonMatch[0].trim();\nconst parsed = JSON.parse(cleaned);\n\nconst keyword = $('Get row(s) in sheet').item.json[\"Target Keyword\"].toLowerCase();\nconst meta_title = parsed.meta_title;\nconst meta_description = parsed.meta_description;\n\nconst keyword_words = keyword.split(' ').filter(w => w.length > 3);\nconst keyword_in_title = meta_title.toLowerCase().includes(keyword) || \n  keyword_words.every(w => meta_title.toLowerCase().includes(w));\nconst keyword_in_desc = meta_description.toLowerCase().includes(keyword) || \n  keyword_words.every(w => meta_description.toLowerCase().includes(w));\n\n// CTR optimisation check\nconst power_words = ['best', 'top', 'free', 'now', 'today', 'trusted', 'expert', 'certified', 'guaranteed', 'fast', 'same day', 'emergency', '24/7', 'local', 'award'];\nconst has_power_word = power_words.some(w => meta_title.toLowerCase().includes(w) || meta_description.toLowerCase().includes(w));\nconst has_number = /\\d/.test(meta_title);\nconst has_cta = /call|book|get|shop|find|discover|try|start|contact|enquire|visit|learn|explore|request|schedule|order|buy|check|see|compare|download|sign up|apply|join/i.test(meta_description);\n\n// Duplication check against other rows in sheet\nconst all_rows = $('Get row(s) in sheet').all();\nconst duplicate_title = all_rows.some(row => \n  row.json[\"Meta Title\"] && \n  row.json[\"Meta Title\"].toLowerCase() === meta_title.toLowerCase() &&\n  row.json[\"row_number\"] !== $('Get row(s) in sheet').item.json[\"row_number\"]\n);\n\nlet status;\nlet issues = [];\n\nif (!keyword_in_title) issues.push('Keyword missing from title');\nif (!keyword_in_desc) issues.push('Keyword missing from description');\nif (meta_title.length < 40) issues.push(`Title too short (${meta_title.length} chars)`);\nif (meta_title.length > 63) issues.push(`Title too long (${meta_title.length} chars)`);\nif (meta_description.length < 130) issues.push(`Description too short (${meta_description.length} chars)`);\nif (meta_description.length > 165) issues.push(`Description too long (${meta_description.length} chars)`);\nif (!has_cta) issues.push('No CTA in description');\nif (duplicate_title) issues.push('Duplicate title detected');\n\n// CTR score\nlet ctr_score = 0;\nif (keyword_in_title) ctr_score += 30;\nif (has_power_word) ctr_score += 25;\nif (has_number) ctr_score += 20;\nif (has_cta) ctr_score += 25;\n\nif (issues.length === 0) {\n  status = '✅ Pass';\n} else {\n  status = '⚠️ ' + issues.join(' | ');\n}\n\nreturn {\n  json: {\n    attempt: attempt,\n    row_number: $('Get row(s) in sheet').item.json[\"row_number\"],\n    meta_title: meta_title,\n    meta_description: meta_description,\n    title_length: meta_title.length,\n    desc_length: meta_description.length,\n    keyword_in_title: keyword_in_title,\n    keyword_in_desc: keyword_in_desc,\n    status: status,\n    api_body: JSON.stringify({\n      model: \"claude-sonnet-4-20250514\",\n      max_tokens: 1000,\n      messages: [{ role: \"user\", content: $('Code in JavaScript1').first().json.prompt }]\n    })\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3952,
+        -96
+      ],
+      "id": "cdf88033-7335-458a-b9f6-50d2a2df51fe",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{$env.ANTHROPIC_API_KEY}}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json.serp_analysis_body}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        3120,
+        -96
+      ],
+      "id": "3e6da1a0-c236-4da0-ad26-13cebe099f79",
+      "name": "HTTP Request3"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "seo-meta-bulk",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        752,
+        -96
+      ],
+      "id": "662becfe-401b-4fd7-9d2a-bd568d8c82da",
+      "name": "Webhook",
+      "webhookId": "b4831824-9219-4b52-805a-9dd4782e7608"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "={{(() => { const raw = $('Webhook').item.json.body?.spreadsheetId || $('Webhook').item.json.body?.spreadsheetUrl || $('Webhook').item.json.body?.sheetUrl || ''; const match = String(raw).match(/\\/spreadsheets\\/d\\/([a-zA-Z0-9-_]+)/); return match ? match[1] : raw; })()}}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{$('Webhook').item.json.body?.sheetName || 'Sheet1'}}"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        960,
+        -96
+      ],
+      "id": "c4dc7bd6-c2ee-4ae5-805c-1c783896d87d",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "DJmknXnLpA8YsxXv",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1360,
+        -96
+      ],
+      "id": "8e012bca-56cc-4c43-9eb0-0c53b4027d67",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "={{(() => { const raw = $('Webhook').item.json.body?.spreadsheetId || $('Webhook').item.json.body?.spreadsheetUrl || $('Webhook').item.json.body?.sheetUrl || ''; const match = String(raw).match(/\\/spreadsheets\\/d\\/([a-zA-Z0-9-_]+)/); return match ? match[1] : raw; })()}}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{$('Webhook').item.json.body?.sheetName || 'Sheet1'}}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Meta Title": "={{$json.meta_title}}",
+            "Meta Description": "={{$json.meta_description}}",
+            "Title Length": "={{$json.title_length}}",
+            "Status": "={{$json.status}}",
+            "Target Keyword": "={{$('Get row(s) in sheet').item.json[\"Target Keyword\"]}}",
+            "Mapped URL": "={{$('Get row(s) in sheet').item.json[\"Mapped URL\"]}}",
+            "Target Region": "={{$('Get row(s) in sheet').item.json[\"Target Region\"]}}",
+            "row_number": "={{$('Get row(s) in sheet').item.json[\"row_number\"]}}"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "Target Keyword",
+              "displayName": "Target Keyword",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Mapped URL",
+              "displayName": "Mapped URL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Target Region",
+              "displayName": "Target Region",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Page Content",
+              "displayName": "Page Content",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Meta Title",
+              "displayName": "Meta Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Meta Description",
+              "displayName": "Meta Description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Title Length",
+              "displayName": "Title Length",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        4368,
+        -96
+      ],
+      "id": "fafcbed5-5e39-4427-9ebc-4ed4045bc22c",
+      "name": "Update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "mkqHoKCi5vRUSbAF",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const page_url = $('Get row(s) in sheet').item.json[\"Mapped URL\"];\nconst jina_content = $('HTTP Request').item.json.data || '';\nconst keyword = $('Get row(s) in sheet').item.json[\"Target Keyword\"];\nconst page_content = jina_content ? jina_content.substring(0, 2000) : 'No content available';\n\nconst context_body = JSON.stringify({\n  model: \"claude-sonnet-4-20250514\",\n  max_tokens: 300,\n  messages: [{\n    role: \"user\",\n    content: `Analyse this page content for the keyword \"${keyword}\" and return ONLY valid JSON:\n{\n  \"main_topic\": \"what this page is mainly about in one sentence\",\n  \"search_intent\": \"informational or transactional or navigational or commercial\",\n  \"page_type\": \"homepage or service page or product page or blog or category page\",\n  \"target_audience\": \"who this page is targeting\"\n}\n\nPAGE CONTENT:\n${page_content}\n\nReturn ONLY valid JSON, nothing else.`\n  }]\n});\n\nreturn {\n  json: {\n    context_body: context_body\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1824,
+        -96
+      ],
+      "id": "8f1328bc-508d-4511-a948-16b8e6c3b8a6",
+      "name": "Code in JavaScript3"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{$env.ANTHROPIC_API_KEY}}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json.context_body}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2240,
+        -96
+      ],
+      "id": "49383d53-b6d7-48a0-9d50-4bfdcdf2ae3f",
+      "name": "HTTP Request4"
+    },
+    {
+      "parameters": {
+        "amount": 15
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        4576,
+        -96
+      ],
+      "id": "e1769afa-ee48-478d-931d-6425bb9a623a",
+      "name": "Wait",
+      "webhookId": "59d5cdee-1eaf-4e54-be80-726ad838c95b"
+    },
+    {
+      "parameters": {
+        "amount": 10
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2896,
+        -96
+      ],
+      "id": "b0996915-2336-48f6-a62f-ac0929e6b778",
+      "name": "Wait1",
+      "webhookId": "6edb4002-df54-49b5-88e2-827ff5e21d8f"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "0451c959-363c-4dd1-be8e-6ce18d856c09",
+              "leftValue": "={{$json.status}}",
+              "rightValue": "✅",
+              "operator": {
+                "type": "string",
+                "operation": "startsWith"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        4160,
+        -96
+      ],
+      "id": "e795bb94-0e47-406c-a076-e80b35e2c7ec",
+      "name": "Validation Check"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "05be688f-74f6-4ec6-b997-1afdcf6b4d27",
+              "leftValue": "={{$json.attempt}}",
+              "rightValue": 2,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        4192,
+        144
+      ],
+      "id": "c819c55c-0b32-4231-ad00-dd413b3c042b",
+      "name": "Max Attempts"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return {\n  json: {\n    attempt: $input.item.json.attempt + 1,\n    api_body: $input.item.json.api_body,\n    content: [{ text: $input.item.json.api_body }]\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4400,
+        240
+      ],
+      "id": "b3b3d148-23ca-4df1-a7f0-ce2964289de5",
+      "name": "Increment Attempt"
+    },
+    {
+      "parameters": {
+        "amount": 3
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2032,
+        -96
+      ],
+      "id": "c17dda36-ebee-4019-9205-471b13b42e9d",
+      "name": "Wait2",
+      "webhookId": "1a5fc0b3-e9c2-49fd-9fc2-7d61518cb99b"
+    },
+    {
+      "parameters": {
+        "amount": 3
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        3536,
+        -96
+      ],
+      "id": "5123a466-f26a-4401-93af-bf9a0dc85b20",
+      "name": "Wait3",
+      "webhookId": "c0fa047c-b4ed-459c-9b57-e270fd121f81"
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all();\n\nconst filtered = rows.filter(row => {\n  const keyword = row.json[\"Target Keyword\"];\n  const metaTitle = row.json[\"Meta Title\"];\n  return keyword && keyword.trim() !== '' && (!metaTitle || metaTitle.trim() === '');\n});\n\nreturn filtered;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1168,
+        -96
+      ],
+      "id": "c1416a07-1b2d-493e-9e99-d7b40dc2dc1f",
+      "name": "Filter Empty Rows"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Wait1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Wait3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request2": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Validation Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request3": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Filter Empty Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript3": {
+      "main": [
+        [
+          {
+            "node": "Wait2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request4": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validation Check": {
+      "main": [
+        [
+          {
+            "node": "Update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Max Attempts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Max Attempts": {
+      "main": [
+        [
+          {
+            "node": "Update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Increment Attempt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Increment Attempt": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait2": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait3": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Empty Rows": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "24510583-f074-47a9-a6a4-cd9ee4f0c2af",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "667bd79c681138e570586bf354733d259b23672571a21e0fecfe1dee1cb587ae"
+  },
+  "id": "39wHSiS6HlaJasVH",
+  "tags": []
+}
