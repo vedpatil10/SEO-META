@@ -7,71 +7,105 @@
   <link rel="stylesheet" href="/public/styles.css" />
 </head>
 <body>
-  <main class="app-shell">
-    <section class="app-card">
-      <div class="topbar">
-        <div>
-          <p class="eyebrow">SEO Meta Agent</p>
-          <h1>Generate SEO Meta Data</h1>
+  <main class="page-shell">
+    <section class="hero-card">
+      <div class="hero-copy">
+        <p class="eyebrow">SEO Meta Agent</p>
+        <h1>Generate SEO metadata directly from Google Sheets.</h1>
+        <p class="hero-text">
+          Connect Google, paste a sheet URL, and write titles and descriptions back into the same rows.
+        </p>
+        <div class="hero-pills">
+          <span class="pill">OAuth Connected Sheets</span>
+          <span class="pill">Duplicate Protection</span>
+          <span class="pill">Live Progress</span>
         </div>
-        <div id="auth-badge" class="badge muted-badge">Google not connected</div>
       </div>
-
-      <div class="auth-row">
-        <button id="connect-google" type="button">Connect Google</button>
-        <button id="disconnect-google" type="button" class="secondary-button hidden">Disconnect</button>
+      <div class="hero-status">
+        <div id="auth-badge" class="status-badge status-muted">Google not connected</div>
+        <div class="hero-orb"></div>
       </div>
+    </section>
 
-      <form id="trigger-form" class="form-grid">
-        <div class="field full">
-          <label for="spreadsheetUrl">Google Sheet URL</label>
-          <input
-            id="spreadsheetUrl"
-            name="spreadsheetUrl"
-            type="url"
-            placeholder="https://docs.google.com/spreadsheets/d/..."
-            required
-          />
+    <section class="workspace-grid">
+      <section class="panel panel-form">
+        <div class="panel-head">
+          <div>
+            <p class="section-label">Workspace</p>
+            <h2>Run Agent</h2>
+          </div>
+          <div class="auth-row">
+            <button id="connect-google" type="button">Connect Google</button>
+            <button id="disconnect-google" type="button" class="secondary-button hidden">Disconnect</button>
+          </div>
         </div>
 
-        <div class="field">
-          <label for="sheetName">Sheet Name</label>
-          <input
-            id="sheetName"
-            name="sheetName"
-            type="text"
-            value="Sheet1"
-            placeholder="Sheet1"
-          />
+        <form id="trigger-form" class="form-grid">
+          <div class="field full">
+            <label for="spreadsheetUrl">Google Sheet URL</label>
+            <input
+              id="spreadsheetUrl"
+              name="spreadsheetUrl"
+              type="url"
+              placeholder="https://docs.google.com/spreadsheets/d/..."
+              required
+            />
+          </div>
+
+          <div class="field">
+            <label for="sheetName">Sheet Name</label>
+            <input
+              id="sheetName"
+              name="sheetName"
+              type="text"
+              value="Sheet1"
+              placeholder="Sheet1"
+            />
+          </div>
+
+          <div class="actions full">
+            <button id="submit-button" type="submit">Trigger SEO Agent</button>
+            <button id="download-button" type="button" class="secondary-button hidden">Download CSV</button>
+          </div>
+        </form>
+      </section>
+
+      <aside id="progress-panel" class="panel panel-progress hidden">
+        <div class="panel-head compact">
+          <div>
+            <p class="section-label">Live Run</p>
+            <h2>Progress</h2>
+          </div>
         </div>
 
-        <div class="actions full">
-          <button id="submit-button" type="submit">Trigger SEO Agent</button>
-          <button id="download-button" type="button" class="secondary-button hidden">Download CSV</button>
-        </div>
-      </form>
-
-      <div id="progress-panel" class="progress-panel hidden">
-        <div class="progress-grid">
-          <div class="metric">
+        <div class="progress-stack">
+          <div class="metric-card">
             <span class="metric-label">Started</span>
             <strong id="started-at">-</strong>
           </div>
-          <div class="metric">
+          <div class="metric-card">
             <span class="metric-label">Processed</span>
             <strong id="processed-count">0</strong>
           </div>
-          <div class="metric">
+          <div class="metric-card">
             <span class="metric-label">Remaining</span>
             <strong id="remaining-count">0</strong>
           </div>
-          <div class="metric">
+          <div class="metric-card accent-card">
             <span class="metric-label">Current Keyword</span>
             <strong id="current-keyword">-</strong>
           </div>
         </div>
-      </div>
+      </aside>
+    </section>
 
+    <section class="panel panel-results">
+      <div class="panel-head compact">
+        <div>
+          <p class="section-label">Output</p>
+          <h2>Run Log</h2>
+        </div>
+      </div>
       <pre id="result" class="result" aria-live="polite">Connect Google, then paste a Google Sheet URL.</pre>
     </section>
   </main>
