@@ -64,8 +64,8 @@ html {
 }
 
 html, body {
-  height: 100%;
-  overflow: hidden;
+  min-height: 100%;
+  overflow-x: hidden;
 }
 
 body {
@@ -73,7 +73,8 @@ body {
   color: var(--text-primary);
   background: var(--bg-base);
   line-height: 1.6;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -131,8 +132,7 @@ body {
   display: grid;
   grid-template-rows: auto auto auto auto auto;
   gap: 10px;
-  height: 100vh;
-  overflow: hidden;
+  min-height: 100vh;
 }
 
 /* ── Header / Nav ───────────────────── */
@@ -637,7 +637,8 @@ input:focus {
 
 .result {
   margin: 0;
-  height: 60px;
+  min-height: 140px;
+  max-height: 320px;
   overflow: auto;
   padding: 14px 16px;
   border: 1px solid var(--border-subtle);
@@ -780,7 +781,8 @@ input:focus {
   }
 
   .result {
-    height: 200px;
+    min-height: 180px;
+    max-height: 320px;
   }
 
   .brand-separator,

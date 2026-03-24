@@ -14,6 +14,32 @@ const outputSection = document.getElementById('output-section');
 let latestCsv = '';
 let activePoll = null;
 
+function revealOutput() {
+  outputSection.classList.remove('hidden');
+  outputSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderJobError(job) {
+  const rawError = String(job.error || 'Unknown job error.');
+  const isRateLimit = rawError.includes('rate_limit_error') || rawError.includes('status 429');
+
+  if (isRateLimit) {
+    result.textContent = JSON.stringify({
+      ok: false,
+      error: 'Anthropic rate limit hit. Wait 1-2 minutes and retry. If this happens often, increase ANTHROPIC_MIN_INTERVAL_MS on the server.',
+      details: rawError,
+      progress: job.progress || null,
+    }, null, 2);
+    return;
+  }
+
+  result.textContent = JSON.stringify({
+    ok: false,
+    error: rawError,
+    progress: job.progress || null,
+  }, null, 2);
+}
+
 function setAuthUi(status) {
   if (!status.oauthConfigured) {
     authBadge.textContent = 'OAuth not configured';
@@ -74,6 +100,7 @@ async function pollJob(jobId) {
     const job = await response.json();
 
     if (!response.ok || job.ok === false) {
+      revealOutput();
       result.textContent = JSON.stringify(job, null, 2);
       clearInterval(activePoll);
       activePoll = null;
@@ -104,13 +131,15 @@ async function pollJob(jobId) {
         csvUrl: data.csvUrl,
         results: data.results,
       }, null, 2);
+      revealOutput();
       return;
     }
 
     if (job.status === 'failed') {
       clearInterval(activePoll);
       activePoll = null;
-      result.textContent = JSON.stringify({ ok: false, error: job.error }, null, 2);
+      revealOutput();
+      renderJobError(job);
     }
   };
 
@@ -125,7 +154,7 @@ connectGoogleButton.addEventListener('click', () => {
 disconnectGoogleButton.addEventListener('click', async () => {
   await fetch('/api/auth/logout', { method: 'POST' });
   await loadAuthStatus();
-  outputSection.classList.remove('hidden');
+  revealOutput();
   result.textContent = 'Google disconnected.';
 });
 
@@ -146,7 +175,7 @@ form.addEventListener('submit', async (event) => {
 
   const authStatus = await loadAuthStatus();
   if (!authStatus.connected) {
-    outputSection.classList.remove('hidden');
+    revealOutput();
     result.textContent = JSON.stringify({
       ok: false,
       error: 'Connect Google first so the app can access and update the sheet.',
@@ -164,7 +193,7 @@ form.addEventListener('submit', async (event) => {
   downloadButton.classList.add('hidden');
   latestCsv = '';
   progressPanel.classList.remove('hidden');
-  outputSection.classList.remove('hidden');
+  revealOutput();
   startedAtEl.textContent = formatDateTime(Date.now());
   processedCountEl.textContent = '0 / 0';
   remainingCountEl.textContent = '0';
@@ -180,11 +209,13 @@ form.addEventListener('submit', async (event) => {
 
     const data = await response.json();
     if (!response.ok || data.ok === false) {
+      revealOutput();
       result.textContent = JSON.stringify(data, null, 2);
       return;
     }
     await pollJob(data.jobId);
   } catch (error) {
+    revealOutput();
     result.textContent = JSON.stringify(
       { ok: false, error: error.message || 'Unexpected client error.' },
       null,
@@ -204,10 +235,10 @@ window.addEventListener('load', async () => {
   const authError = params.get('auth_error');
 
   if (auth === 'success') {
-    outputSection.classList.remove('hidden');
+    revealOutput();
     result.textContent = 'Google connected. Now paste the sheet URL and run the agent.';
   } else if (authError) {
-    outputSection.classList.remove('hidden');
+    revealOutput();
     result.textContent = JSON.stringify({ ok: false, error: authError }, null, 2);
   }
 
