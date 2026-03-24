@@ -10,13 +10,14 @@ const startedAtEl = document.getElementById('started-at');
 const processedCountEl = document.getElementById('processed-count');
 const remainingCountEl = document.getElementById('remaining-count');
 const currentKeywordEl = document.getElementById('current-keyword');
+const outputSection = document.getElementById('output-section');
 let latestCsv = '';
 let activePoll = null;
 
 function setAuthUi(status) {
   if (!status.oauthConfigured) {
     authBadge.textContent = 'OAuth not configured';
-    authBadge.className = 'badge muted-badge';
+    authBadge.className = 'status-badge status-muted';
     connectGoogleButton.disabled = true;
     disconnectGoogleButton.classList.add('hidden');
     return;
@@ -24,12 +25,12 @@ function setAuthUi(status) {
 
   if (status.connected) {
     authBadge.textContent = `Connected: ${status.profile?.email || 'Google account'}`;
-    authBadge.className = 'badge success-badge';
+    authBadge.className = 'status-badge status-success';
     connectGoogleButton.classList.add('hidden');
     disconnectGoogleButton.classList.remove('hidden');
   } else {
     authBadge.textContent = 'Google not connected';
-    authBadge.className = 'badge muted-badge';
+    authBadge.className = 'status-badge status-muted';
     connectGoogleButton.classList.remove('hidden');
     connectGoogleButton.disabled = false;
     disconnectGoogleButton.classList.add('hidden');
@@ -124,6 +125,7 @@ connectGoogleButton.addEventListener('click', () => {
 disconnectGoogleButton.addEventListener('click', async () => {
   await fetch('/api/auth/logout', { method: 'POST' });
   await loadAuthStatus();
+  outputSection.classList.remove('hidden');
   result.textContent = 'Google disconnected.';
 });
 
@@ -144,6 +146,7 @@ form.addEventListener('submit', async (event) => {
 
   const authStatus = await loadAuthStatus();
   if (!authStatus.connected) {
+    outputSection.classList.remove('hidden');
     result.textContent = JSON.stringify({
       ok: false,
       error: 'Connect Google first so the app can access and update the sheet.',
@@ -157,15 +160,16 @@ form.addEventListener('submit', async (event) => {
   };
 
   submitButton.disabled = true;
-  submitButton.textContent = 'Triggering...';
+  submitButton.textContent = 'Processing...';
   downloadButton.classList.add('hidden');
   latestCsv = '';
   progressPanel.classList.remove('hidden');
+  outputSection.classList.remove('hidden');
   startedAtEl.textContent = formatDateTime(Date.now());
   processedCountEl.textContent = '0 / 0';
   remainingCountEl.textContent = '0';
   currentKeywordEl.textContent = '-';
-  result.textContent = 'Reading sheet and generating metadata locally...';
+  result.textContent = 'Reading sheet and optimizing SEO content...';
 
   try {
     const response = await fetch('/api/run', {
@@ -188,7 +192,7 @@ form.addEventListener('submit', async (event) => {
     );
   } finally {
     submitButton.disabled = false;
-    submitButton.textContent = 'Trigger SEO Agent';
+    submitButton.textContent = 'Generate Meta Data';
   }
 });
 
@@ -200,8 +204,10 @@ window.addEventListener('load', async () => {
   const authError = params.get('auth_error');
 
   if (auth === 'success') {
+    outputSection.classList.remove('hidden');
     result.textContent = 'Google connected. Now paste the sheet URL and run the agent.';
   } else if (authError) {
+    outputSection.classList.remove('hidden');
     result.textContent = JSON.stringify({ ok: false, error: authError }, null, 2);
   }
 
