@@ -8,36 +8,24 @@
 </head>
 <body>
   <main class="app-shell">
-    <header class="topbar">
-      <div class="brand-block">
+    <header class="app-header">
+      <div class="brand">
         <p class="eyebrow">SEO Meta Agent</p>
-        <h1>Google Sheets Metadata Ops</h1>
+        <h1>Metadata Operations</h1>
       </div>
-      <div class="topbar-actions">
+      <div class="header-actions">
         <div id="auth-badge" class="status-badge status-muted">Google not connected</div>
         <button id="connect-google" type="button">Connect Google</button>
         <button id="disconnect-google" type="button" class="secondary-button hidden">Disconnect</button>
       </div>
     </header>
 
-    <section class="hero-strip">
-      <div class="hero-copy">
-        <h2>Run SEO metadata generation on the active sheet tab.</h2>
-        <p>Paste a Google Sheets URL, process only blank metadata rows, and write results back into the same sheet.</p>
-      </div>
-      <div class="hero-meta">
-        <span class="meta-chip">OAuth Access</span>
-        <span class="meta-chip">Duplicate Guard</span>
-        <span class="meta-chip">Live Progress</span>
-      </div>
-    </section>
-
-    <section class="workspace-grid">
+    <section class="workspace">
       <section class="panel control-panel">
         <div class="panel-head">
           <div>
-            <p class="section-label">Control Center</p>
-            <h3>Run Agent</h3>
+            <p class="section-label">Input</p>
+            <h2>Run Agent</h2>
           </div>
         </div>
 
@@ -63,8 +51,8 @@
       <aside id="progress-panel" class="panel progress-panel hidden">
         <div class="panel-head">
           <div>
-            <p class="section-label">Operations</p>
-            <h3>Live Status</h3>
+            <p class="section-label">Progress</p>
+            <h2>Live Status</h2>
           </div>
         </div>
 
@@ -93,7 +81,7 @@
       <div class="panel-head">
         <div>
           <p class="section-label">Output</p>
-          <h3>Run Log</h3>
+          <h2>Run Log</h2>
         </div>
       </div>
       <pre id="result" class="result" aria-live="polite">Connect Google, paste a Google Sheet URL, and run the agent.</pre>
